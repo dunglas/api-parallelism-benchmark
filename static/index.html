@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>API Parallelism Benchmark</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bulma@0.9/css/bulma.min.css"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <section class="hero is-primary">
+      <div class="hero-body">
+        <div class="container">
+          <h1 class="title">API Parallelism Benchmark</h1>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <p>
+          This benchmark is designed to compare using GraphQL-like compound
+          documents VS using HTTP/2 Server Push as proposed by
+          <a href="https://vulcain.rocks">the Vulcain protocol</a>. It also
+          measures the performance impact of caching (server-side and
+          client-side).
+        </p>
+        <p><b>Open the console to see the results!</b></p>
+      </div>
+    </section>
+
+    <div class="container" role="main">
+      <form id="settings">
+        <div class="field">
+          <div class="control">
+            <label class="radio">
+              <input type="radio" name="type" value="push" checked />
+              Server Push (such as Vulcain, a specific HTTP response per
+              resource)
+            </label>
+            <label class="radio">
+              <input type="radio" name="type" value="casper" />
+              Server Push with
+              <a href="https://github.com/tcnksm/go-casper">CASPer</a> (prevent
+              over-pushing)
+            </label>
+            <label class="radio">
+              <input type="radio" name="type" value="compound" />
+              Compound (such as GraphQL, one big HTTP response containing all
+              resources)
+            </label>
+            <label class="radio">
+              <input type="radio" name="type" value="standalone" />
+              Standalone (standalone resources, but no Push)
+            </label>
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">Number of resources</label>
+          <div class="control">
+            <input class="input" name="nb" type="number" value="50" />
+          </div>
+          <p class="help">The number of related resources to retrieve.</p>
+        </div>
+        <div class="field">
+          <label class="label">Size of each resource</label>
+          <div class="control">
+            <input class="input" name="bytes" type="number" value="102400" />
+          </div>
+          <p class="help">The size of each resource in bytes.</p>
+        </div>
+        <div class="field">
+          <label class="label"
+            >Generation time for each resource (~<abbr
+              title="Time To First Byte"
+              >TTFB</abbr
+            >)</label
+          >
+          <div class="control">
+            <input class="input" name="delay" type="number" value="20" />
+          </div>
+          <p class="help">
+            The time taken by the server to generate each resource (algorithms,
+            SQL queries, serialization...) in milliseconds.
+          </p>
+        </div>
+        <div class="field">
+          <label class="label">Server-side cache hits</label>
+          <div class="control">
+            <input class="input" name="hits" type="number" value="15" />
+          </div>
+          <p class="help">
+            The number of server-side cache hits (no generation time for these
+            resources), simulates the use of cache reverse proxies such as
+            Varnish. The more resources are granular, the more the number of
+            hits increases (this number should be higher when using HTTP/2
+            Server Push instead of compound documents).
+          </p>
+        </div>
+        <!--<div class="field">
+          <label class="label">Client-side cache hits</label>
+          <div class="control">
+            <input class="input" name="bytes" type="number" value="5" />
+          </div>
+          <p class="help">
+            The number of client-side cache hits (no request at all for these
+            resources), simulates the use of a library such as Zeit SWR. The
+            more resources are granular, the more the number of hits increases
+            (this number should be higher when using HTTP/2 Server Push instead
+            of compound documents).
+          </p>
+        </div>-->
+        <div class="field is-grouped">
+          <div class="control">
+            <button class="button is-primary">Start</button>
+          </div>
+          <div class="control">
+            <button class="button" type="reset">Reset</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <footer class="footer">
+      <div class="content has-text-centered">
+        <p>
+          This benchmark has been created by the
+          <a href="https://mercure.rocks">Mercure</a>'s team.<br /><a
+            href="https://github.com/dunglas/api-parallelism-benchmark"
+            >Source code</a
+          >
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      const $settings = document.getElementById("settings");
+      $settings.onsubmit = (e) => {
+        e.preventDefault();
+
+        if ($settings.type.value === "compound") {
+          fetchCompound(
+            parseInt($settings.nb.value),
+            parseInt($settings.bytes.value),
+            parseInt($settings.delay.value),
+            parseInt($settings.hits.value)
+          );
+          return;
+        }
+
+        fetchStandalone(
+          $settings.type.value,
+          parseInt($settings.nb.value),
+          parseInt($settings.bytes.value),
+          parseInt($settings.delay.value),
+          parseInt($settings.hits.value)
+        );
+      };
+
+      const fetchCompound = async (nb, bytes, delay, hits) => {
+        performance.mark("start");
+        const compoundResp = await fetch(
+          `/api?type=compound&nb=${nb}&bytes=${bytes}&delay=${delay}&hits=${hits}`
+        );
+        await compoundResp.text();
+        performance.mark("end");
+        displayResults("compound");
+      };
+
+      const fetchStandalone = (type, nb, bytes, delay, hits) => {
+        let receivedDocs = 0;
+        performance.mark("start");
+        for (let i = 0; i < nb; i++) {
+          const p =
+            i === 0
+              ? fetch(
+                  `/api?type=${type}&nb=${nb}&bytes=${bytes}&delay=${delay}&hits=${hits}`
+                )
+              : fetch(
+                  `/api?type=${type}&nb=1&bytes=${bytes}&delay=${delay}&hits=${
+                    i < hits ? 1 : 0
+                  }&id=${i}`
+                );
+          p.then((resp) => resp.text()).then(() => {
+            receivedDocs++;
+            if (receivedDocs === nb) {
+              performance.mark("end");
+              displayResults(type);
+            }
+          });
+        }
+      };
+
+      const displayResults = (type) => {
+        console.log(
+          type,
+          performance.measure("difference", "start", "end").duration
+        );
+        performance.clearMarks();
+        performance.clearMeasures();
+      };
+    </script>
+  </body>
+</html>
