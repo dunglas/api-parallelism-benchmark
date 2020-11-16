@@ -10,13 +10,12 @@ With Google Chrome and the settings shown in this screenshot, I get the followin
 
 ![screenshot](screenshot.png)
 
-In these conditions, HTTP/2 Server Push is **4 time** faster than creating a compound documents.
+In these conditions (and with a warm TCP connection for both cases), HTTP/2 Server Push is **4 time** faster than creating a compound documents.
 
 Method                 | time (lowest is better)
 -----------------------|------------------------
-**HTTP Server Push**   | 214.33999999135267
------------------------| -----------------------
-**Compound documents** | 894.7400000033667
+**HTTP Server Push**   | 214.34
+**Compound documents** | 894.74
 
 For smallest documents, multiplexing is almost useless. For medium and large ones, it helps a lot. The larger the volume of data, the more efficient the split over multiple HTTP responses.
 
@@ -41,7 +40,13 @@ I'll publish more examples and a detailed analysis at some point. In the meantim
 1. Install [mkcert](https://github.com/FiloSottile/mkcert) and generate certificates
 2. Run the server using the local certs:
 
-    mkcert -install
-    mkcert -key-file key.pem -cert-file cert.pem local.example.com
-    CERT_FILE=cert.pem KEY_FILE=key.pem ./api-parallelism-benchmark
+       mkcert -install
+       mkcert -key-file key.pem -cert-file cert.pem local.example.com
+       CERT_FILE=cert.pem KEY_FILE=key.pem ./api-parallelism-benchmark
 
+## TODO
+
+[ ] * Add support for [Preload links](https://www.w3.org/TR/preload/)
+[ ] * Add support for [Early Hints](https://tools.ietf.org/html/rfc8297)
+[ ] * Maybe use the Caddy Server and the Vulcain module directly (they already support HTTP/3 and Preload links)
+[ ] * find a way to compare [cold vs warm TCP connections](https://blog.donatas.net/blog/2015/08/08/slow-start-after-idle/)
