@@ -46,7 +46,7 @@ I'll publish more examples and a detailed analysis at some point. In the meantim
 
 ## TODO
 
-[ ] * Add support for [Preload links](https://www.w3.org/TR/preload/)
-[ ] * Add support for [Early Hints](https://tools.ietf.org/html/rfc8297)
-[ ] * Maybe use the Caddy Server and the Vulcain module directly (they already support HTTP/3 and Preload links)
-[ ] * find a way to compare [cold vs warm TCP connections](https://blog.donatas.net/blog/2015/08/08/slow-start-after-idle/)
+* [ ] Add support for [Preload links](https://www.w3.org/TR/preload/)
+* [ ] Add support for [Early Hints](https://tools.ietf.org/html/rfc8297)
+* [ ] Maybe use the Caddy Server and the Vulcain module directly (they already support HTTP/3 and Preload links)
+* [ ] Find a way to compare [cold vs warm TCP connections](https://blog.donatas.net/blog/2015/08/08/slow-start-after-idle/)
